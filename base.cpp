@@ -37,7 +37,11 @@ using Location = unsigned int;
 struct ThreadTrans {
   Guard guard;
   Action action;
+  string label; // XXX
+  //const string label;
   Location dest; // 0 <= l < model.trans.count() + 1
+
+  ThreadTrans(const string label): label(label) {};
 };
 
 struct ThreadModel {
@@ -100,7 +104,7 @@ void printThreadTransition(Thread p) {
   const ThreadModel &m = p.model;
   unordered_set<Location> visited;
   queue<Location> q;
-  q.push(0);
+  q.push(0 /* initial location */);
   while (q.size() > 0) {
     Location l = q.front();
     q.pop();
@@ -113,8 +117,10 @@ void printThreadTransition(Thread p) {
     // XXX https://stackoverflow.com/a/41130170
     vector<ThreadTrans> trans = m.trans.at(l);
     for (ThreadTrans &choice: trans) {
-      q.push(choice.dest);
-      printDotTheadTrans(l, choice);
+      if (choice.dest < m.trans.size()) {
+        q.push(choice.dest);
+        printDotTheadTrans(l, choice);
+      }
     }
   }
 
@@ -127,7 +133,7 @@ int main() {
   // Read-Incr-Write (a.k.a Read-Modify-Write)
 
   // Read
-  ThreadTrans read;
+  ThreadTrans read("read");
   read.dest = 1;
   read.guard = [](SharedVars s) {
     return true;
@@ -139,7 +145,7 @@ int main() {
   };
 
   // Incr
-  ThreadTrans incr;
+  ThreadTrans incr("incr");
   incr.dest = 2;
   incr.guard = [](SharedVars s) {
     return true;
@@ -151,8 +157,8 @@ int main() {
   };
 
   // Write
-  ThreadTrans write;
-  incr.dest = 3;
+  ThreadTrans write("write");
+  write.dest = 3;
   write.guard = [](SharedVars s) {
     return true;
   };
