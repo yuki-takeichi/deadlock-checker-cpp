@@ -87,7 +87,7 @@ template<> struct hash<SystemState> {
   }
 };
 
-// Visualize
+// Visualize thread impl
 
 void printDotTheadState(Location l) {
   cout << l << ";" << endl;
@@ -124,6 +124,27 @@ void printThreadTransition(Thread p) {
   }
 
   cout << "}" << endl;
+}
+
+
+// Visualize execution
+
+void printDotState(SystemState s) {
+  cout << s.id << endl;
+}
+
+void printDotTransition(SystemStateId cur, SystemStateId dest) {
+  cout << cur << " -> " << dest << endl;
+}
+
+void printDotComposision(unordered_map<SystemStateId, SystemState> composed) {
+  for (auto &it: composed) {
+    SystemState s = it.second;
+    printDotState(s);
+    for (auto adj: s.adjs) {
+      printDotTransition(s.id, adj);
+    }
+  }
 }
 
 // Composition
