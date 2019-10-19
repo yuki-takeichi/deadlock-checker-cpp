@@ -128,8 +128,8 @@ void printThreadTransition(Thread p) {
 
 // Composition
 
-unordered_set<SystemState> concurrentComposition(vector<Thread> ts, SystemState &init) {
-  unordered_set<SystemState> visited;
+unordered_map<SystemStateId, SystemState> concurrentComposition(vector<Thread> ts, SystemState &init) {
+  unordered_map<SystemStateId, SystemState> visited;
   queue<SystemState> q;
   q.push(init);
 
@@ -137,10 +137,10 @@ unordered_set<SystemState> concurrentComposition(vector<Thread> ts, SystemState 
   while (q.size() > 0) {
     SystemState &s = q.front();
     q.pop();
-    if (visited.count(s) > 0) {
+    if (visited.count(s.id) > 0) {
       continue;
     }
-    visited.insert(s);
+    visited[s.id] = s;
 
     for (Thread &t: ts) {
       Location l = init.locations[t.id];
