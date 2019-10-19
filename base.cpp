@@ -59,16 +59,14 @@ struct Thread {
 
 // State Transitions (Execution Paths)
 
-using ThreadStateRef = unsigned int;
-
-struct StateTransition {
-  ThreadStateRef dest;
-};
+using SystemStateId = unsigned int;
 
 struct SystemState {
+  SystemStateId id;
+
   vector<Location> locations;
   SharedVars sharedVars;
-  vector<StateTransition> trans; // adjs list
+  vector<SystemStateId> adjs; // adjs list
 
   bool operator==(const SystemState &other) const {
     return this->locations == other.locations
@@ -130,13 +128,14 @@ void printThreadTransition(Thread p) {
 
 // Composition
 
-void concurrentComposition(vector<Thread> ts, SystemState init) {
+unordered_set<SystemState> concurrentComposition(vector<Thread> ts, SystemState &init) {
   unordered_set<SystemState> visited;
   queue<SystemState> q;
   q.push(init);
 
+  SystemStateId id = init.id;
   while (q.size() > 0) {
-    SystemState s = q.front();
+    SystemState &s = q.front();
     q.pop();
     if (visited.count(s) > 0) {
       continue;
@@ -148,13 +147,20 @@ void concurrentComposition(vector<Thread> ts, SystemState init) {
       for (ThreadTrans trans: t.model.trans[l]) {
         if (trans.guard(s.sharedVars)) {
           SystemState newState = s;
+          newState.id = ++id;
           newState.sharedVars = trans.action(s.sharedVars);
-          q.push(newState);
+          newState.locations[t.id] = trans.dest;
+
+          if (trans.dest < t.model.trans.size()) {
+            q.push(newState);
+            s.adjs.push_back(newState.id);
+          }
         }
       }
     }
   }
 
+  return visited;
 }
 
 // Thread Instances (m_inc2)
