@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <unordered_set>
+#include <unordered_map>
 #include <queue>
 #include <string>
 
@@ -40,14 +41,14 @@ struct ThreadTrans {
 };
 
 struct ThreadModel {
-  vector<ThreadTrans> trans;
+  unordered_map<Location, vector<ThreadTrans>> trans;
 };
 
 struct Thread {
   const string name;
-  ThreadModel model;
+  const ThreadModel &model;
 
-  Thread(const string name, ThreadModel model): name(name), model(model) {
+  Thread(const string name, const ThreadModel &model): name(name), model(model) {
   };
 };
 
@@ -82,6 +83,43 @@ template<> struct hash<ThreadState> {
     return ret;
   }
 };
+
+// Visualize
+
+void printDotTheadState(Location l) {
+  cout << l << ";" << endl;
+}
+
+void printDotTheadTrans(Location l, ThreadTrans choice) {
+  cout << l << " -> " << choice.dest << endl;
+}
+
+void printThreadTransition(Thread p) {
+  cout << "digraph {" << endl;
+
+  const ThreadModel &m = p.model;
+  unordered_set<Location> visited;
+  queue<Location> q;
+  q.push(0);
+  while (q.size() > 0) {
+    Location l = q.front();
+    q.pop();
+    if (visited.count(l) > 0) {
+      continue;
+    }
+    visited.insert(l);
+    printDotTheadState(l);
+
+    // XXX https://stackoverflow.com/a/41130170
+    vector<ThreadTrans> trans = m.trans.at(l);
+    for (ThreadTrans &choice: trans) {
+      q.push(choice.dest);
+      printDotTheadTrans(l, choice);
+    }
+  }
+
+  cout << "}" << endl;
+}
 
 // Thread Instances (m_inc2)
 
@@ -125,8 +163,13 @@ int main() {
   };
 
   ThreadModel model;
-  model.trans = vector<ThreadTrans>{read, incr, write};
+  unordered_map<Location, vector<ThreadTrans>> trans;
+  trans[0] = vector<ThreadTrans>{read};
+  trans[1] = vector<ThreadTrans>{incr};
+  trans[2] = vector<ThreadTrans>{write};
+  model.trans = trans;
 
-  Thread p("p", model), q("q", model);
+  Thread p("p", model);
+  printThreadTransition(p);
   return 0;
 }
