@@ -16,7 +16,7 @@ struct SharedVars {
   int t0;
   int t1;
 
-  bool operator==(const SharedVars &other) {
+  bool operator==(const SharedVars &other) const {
     return this->x == other.x
         && this->t0 == other.t0
         && this->t1 == other.t1
@@ -25,7 +25,7 @@ struct SharedVars {
 };
 
 template<> struct hash<SharedVars> {
-  unsigned operator()(const SharedVars &v) {
+  unsigned operator()(const SharedVars &v) const {
     return v.x ^ (v.t0 << 3) ^ (v.t1 << 6); // unsigned is 32bits
   };
 };
@@ -45,14 +45,15 @@ struct ThreadTrans {
 };
 
 struct ThreadModel {
-  unordered_map<Location, vector<ThreadTrans>> trans;
+  vector<vector<ThreadTrans>> trans;
 };
 
 struct Thread {
+  const unsigned int id;
   const string name;
   const ThreadModel &model;
 
-  Thread(const string name, const ThreadModel &model): name(name), model(model) {
+  Thread(const unsigned int id, const string name, const ThreadModel &model): id(id), name(name), model(model) {
   };
 };
 
@@ -64,23 +65,23 @@ struct StateTransition {
   ThreadStateRef dest;
 };
 
-struct ThreadState {
-  vector<Location> dest;
+struct SystemState {
+  vector<Location> locations;
   SharedVars sharedVars;
   vector<StateTransition> trans; // adjs list
 
-  bool operator==(const ThreadState &other) {
-    return this->dest == other.dest
+  bool operator==(const SystemState &other) const {
+    return this->locations == other.locations
         && this->sharedVars == other.sharedVars
         ;
   };
 };
 
-template<> struct hash<ThreadState> {
-  unsigned operator()(const ThreadState &v) {
+template<> struct hash<SystemState> {
+  unsigned operator()(const SystemState &v) const {
     unsigned ret = hash<SharedVars>()(v.sharedVars);
     int i = 9;
-    for (auto l: v.dest) {
+    for (auto l: v.locations) {
       ret ^= (l >> i);
       i += 3; 
     }
@@ -127,6 +128,35 @@ void printThreadTransition(Thread p) {
   cout << "}" << endl;
 }
 
+// Composition
+
+void concurrentComposition(vector<Thread> ts, SystemState init) {
+  unordered_set<SystemState> visited;
+  queue<SystemState> q;
+  q.push(init);
+
+  while (q.size() > 0) {
+    SystemState s = q.front();
+    q.pop();
+    if (visited.count(s) > 0) {
+      continue;
+    }
+    visited.insert(s);
+
+    for (Thread &t: ts) {
+      Location l = init.locations[t.id];
+      for (ThreadTrans trans: t.model.trans[l]) {
+        if (trans.guard(s.sharedVars)) {
+          SystemState newState = s;
+          newState.sharedVars = trans.action(s.sharedVars);
+          q.push(newState);
+        }
+      }
+    }
+  }
+
+}
+
 // Thread Instances (m_inc2)
 
 int main() {
@@ -169,13 +199,20 @@ int main() {
   };
 
   ThreadModel model;
-  unordered_map<Location, vector<ThreadTrans>> trans;
-  trans[0] = vector<ThreadTrans>{read};
-  trans[1] = vector<ThreadTrans>{incr};
-  trans[2] = vector<ThreadTrans>{write};
+  vector<vector<ThreadTrans>>trans {
+    vector<ThreadTrans>{read},
+    vector<ThreadTrans>{incr},
+    vector<ThreadTrans>{write}
+  };
   model.trans = trans;
 
-  Thread p("p", model);
+  Thread p(0, "p", model), q(1, "q", model);
   printThreadTransition(p);
+
+  SystemState init;
+  init.sharedVars.x = 0;
+  init.sharedVars.t0 = 0;
+  init.sharedVars.t1 = 0;
+  concurrentComposition(vector<Thread>{p, q}, init);
   return 0;
 }
