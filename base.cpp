@@ -26,7 +26,7 @@ struct SharedVars {
 
 template<> struct hash<SharedVars> {
   unsigned operator()(const SharedVars &v) const {
-    return v.x ^ (v.t0 << 3) ^ (v.t1 << 6); // unsigned is 32bits
+    return v.x | (v.t0 << 3) | (v.t1 << 6); // unsigned is 32bits
   };
 };
 
@@ -80,7 +80,7 @@ template<> struct hash<SystemState> {
     unsigned ret = hash<SharedVars>()(v.sharedVars);
     int i = 9;
     for (auto l: v.locations) {
-      ret ^= (l >> i);
+      ret |= (l >> i);
       i += 3; 
     }
     return ret;
