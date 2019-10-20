@@ -187,9 +187,9 @@ unordered_map<SystemStateId, SystemState> concurrentComposition(vector<Thread> t
 // Thread Instances (m_inc2)
 
 int main() {
-  // Read-Incr-Write (a.k.a Read-Modify-Write)
+  // Read-Incr-Write
 
-  // Read
+  // Atomic read
   ThreadTrans read("read");
   read.dest = 1;
   read.guard = [](SharedVars s) {
@@ -201,7 +201,7 @@ int main() {
     return sPrime;
   };
 
-  // Incr
+  // Atomic increment
   ThreadTrans incr("incr");
   incr.dest = 2;
   incr.guard = [](SharedVars s) {
@@ -213,7 +213,7 @@ int main() {
     return sPrime;
   };
 
-  // Write
+  // Atomic write
   ThreadTrans write("write");
   write.dest = 3;
   write.guard = [](SharedVars s) {
