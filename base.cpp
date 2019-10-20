@@ -130,14 +130,16 @@ void printThreadTransition(Thread p) {
 // Visualize execution
 
 void printDotState(SystemState s) {
-  cout << s.id << endl;
+  cout << s.id << ";" << endl;
 }
 
 void printDotTransition(SystemStateId cur, SystemStateId dest) {
-  cout << cur << " -> " << dest << endl;
+  cout << cur << " -> " << dest << ";" << endl;
 }
 
 void printDotComposision(unordered_map<SystemStateId, SystemState> composed) {
+  cout << "digraph {" << endl;
+
   for (auto &it: composed) {
     SystemState s = it.second;
     printDotState(s);
@@ -145,6 +147,8 @@ void printDotComposision(unordered_map<SystemStateId, SystemState> composed) {
       printDotTransition(s.id, adj);
     }
   }
+
+  cout << "}" << endl;
 }
 
 // Composition
