@@ -101,16 +101,16 @@ void printThreadTransition(Thread p) {
   cout << "digraph {" << endl;
 
   const ThreadModel &m = p.model;
-  unordered_set<Location> visited;
+  unordered_set<Location> res;
   queue<Location> q;
   q.push(0 /* initial location */);
   while (q.size() > 0) {
     Location l = q.front();
     q.pop();
-    if (visited.count(l) > 0) {
+    if (res.count(l) > 0) {
       continue;
     }
-    visited.insert(l);
+    res.insert(l);
     printDotTheadState(l);
 
     // XXX https://stackoverflow.com/a/41130170
@@ -130,7 +130,18 @@ void printThreadTransition(Thread p) {
 // Visualize execution
 
 void printDotState(SystemState s) {
-  cout << s.id << ";" << endl;
+  cout
+    << s.id
+    << " [label=\""
+    << s.id << "\\n"
+    << "P" << s.locations[0]
+    << " Q" << s.locations[1] << "\\n"
+    << "x=" << s.sharedVars.x << ", "
+    << "t0=" << s.sharedVars.t0 << ", "
+    << "t1=" << s.sharedVars.t1
+    << "\"]"
+    << ";"
+    << endl;
 }
 
 void printDotTransition(SystemStateId cur, SystemStateId dest) {
@@ -154,47 +165,54 @@ void printDotComposision(unordered_map<SystemStateId, SystemState> composed) {
 // Composition
 
 unordered_map<SystemStateId, SystemState> concurrentComposition(vector<Thread> ts, SystemState &init) {
-  unordered_map<SystemStateId, SystemState> visited;
+  unordered_map<SystemStateId, SystemState> res;
+  unordered_set<SystemState> visited;
   queue<SystemState> q;
   q.push(init);
 
   SystemStateId id = init.id;
   while (q.size() > 0) {
-    SystemState &s = q.front();
+    SystemState s = q.front();
     q.pop();
-    if (visited.count(s.id) > 0) {
+    if (visited.count(s) > 0) {
       continue;
     }
-    visited[s.id] = s;
+    visited.insert(s);
+    res[s.id] = s;
 
     for (Thread &t: ts) {
-      Location l = init.locations[t.id];
+      Location l = s.locations[t.id];
       for (ThreadTrans trans: t.model.trans[l]) {
         if (trans.guard(s.sharedVars)) {
           SystemState newState = s;
-          newState.id = ++id;
           newState.sharedVars = trans.action(s.sharedVars);
           newState.locations[t.id] = trans.dest;
 
+          if (visited.count(newState) > 0) {
+            res[s.id].adjs.push_back(visited.find(newState)->id);
+            continue;
+          }
+
+          newState.id = ++id;
           if (trans.dest < t.model.trans.size()) {
             q.push(newState);
-            s.adjs.push_back(newState.id);
+            res[s.id].adjs.push_back(newState.id);
           }
         }
       }
     }
   }
 
-  return visited;
+  return res;
 }
 
 // Thread Instances (m_inc2)
 
 int main() {
-  // Read-Incr-Write
+  // P: Read-Incr-Write
 
   // Atomic read
-  ThreadTrans read("read");
+  ThreadTrans read("readP");
   read.dest = 1;
   read.guard = [](SharedVars s) {
     return true;
@@ -206,26 +224,26 @@ int main() {
   };
 
   // Atomic increment
-  ThreadTrans incr("incr");
+  ThreadTrans incr("incrP");
   incr.dest = 2;
   incr.guard = [](SharedVars s) {
     return true;
   };
   incr.action = [](SharedVars s) {
     auto sPrime = s;
-    sPrime.t0 = s.x;
+    sPrime.t0 = s.t0 + 1;
     return sPrime;
   };
 
   // Atomic write
-  ThreadTrans write("write");
+  ThreadTrans write("writeP");
   write.dest = 3;
   write.guard = [](SharedVars s) {
     return true;
   };
   write.action = [](SharedVars s) {
     SharedVars sPrime = s;
-    sPrime.t0 = s.x;
+    sPrime.x = s.t0;
     return sPrime;
   };
 
@@ -237,8 +255,54 @@ int main() {
   };
   model.trans = trans;
 
-  Thread p(0, "p", model), q(1, "q", model);
-  printThreadTransition(p);
+
+  // Q: Read-Incr-Write
+
+  // Atomic read
+  ThreadTrans readQ("readQ");
+  readQ.dest = 1;
+  readQ.guard = [](SharedVars s) {
+    return true;
+  };
+  readQ.action = [](SharedVars s) {
+    SharedVars sPrime = s;
+    sPrime.t1 = s.x;
+    return sPrime;
+  };
+
+  // Atomic increment
+  ThreadTrans incrQ("incrQ");
+  incrQ.dest = 2;
+  incrQ.guard = [](SharedVars s) {
+    return true;
+  };
+  incrQ.action = [](SharedVars s) {
+    auto sPrime = s;
+    sPrime.t1 = s.t1 + 1;
+    return sPrime;
+  };
+
+  // Atomic write
+  ThreadTrans writeQ("writeQ");
+  writeQ.dest = 3;
+  writeQ.guard = [](SharedVars s) {
+    return true;
+  };
+  writeQ.action = [](SharedVars s) {
+    SharedVars sPrime = s;
+    sPrime.x = s.t1;
+    return sPrime;
+  };
+
+  ThreadModel modelQ;
+  vector<vector<ThreadTrans>>transQ {
+    vector<ThreadTrans>{readQ},
+    vector<ThreadTrans>{incrQ},
+    vector<ThreadTrans>{writeQ}
+  };
+  modelQ.trans = transQ;
+  Thread p(0, "p", model), q(1, "q", modelQ);
+  //printThreadTransition(p);
 
   SystemState init;
   init.sharedVars.x = 0;
