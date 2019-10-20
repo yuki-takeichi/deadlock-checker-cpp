@@ -37,8 +37,7 @@ using Location = unsigned int;
 struct ThreadTrans {
   Guard guard;
   Action action;
-  string label; // XXX
-  //const string label;
+  string label;
   Location dest; // 0 <= l < model.trans.count() + 1
 
   ThreadTrans(const string label): label(label) {};
@@ -70,8 +69,10 @@ struct SystemStateRef {
 struct SystemState {
   SystemStateId id;
 
+  // XXX separate these as a distinct struct
   vector<Location> locations;
   SharedVars sharedVars;
+
   vector<SystemStateRef> adjs; // adjs list
 
   bool operator==(const SystemState &other) const {
