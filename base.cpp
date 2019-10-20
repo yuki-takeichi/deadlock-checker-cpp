@@ -61,12 +61,18 @@ struct Thread {
 
 using SystemStateId = unsigned int;
 
+struct SystemStateRef {
+  SystemStateId destId;
+  string label;
+  SystemStateRef(SystemStateId destId, const string label): destId(destId), label(label) {};
+};
+
 struct SystemState {
   SystemStateId id;
 
   vector<Location> locations;
   SharedVars sharedVars;
-  vector<SystemStateId> adjs; // adjs list
+  vector<SystemStateRef> adjs; // adjs list
 
   bool operator==(const SystemState &other) const {
     return this->locations == other.locations
@@ -144,8 +150,16 @@ void printDotState(SystemState s) {
     << endl;
 }
 
-void printDotTransition(SystemStateId cur, SystemStateId dest) {
-  cout << cur << " -> " << dest << ";" << endl;
+void printDotTransition(SystemStateId cur, SystemStateRef ref) {
+  cout
+    << cur
+    << " -> "
+    << ref.destId
+    << " [label=\""
+    << ref.label
+    << "\"]"
+    << ";"
+    << endl;
 }
 
 void printDotComposision(unordered_map<SystemStateId, SystemState> composed) {
@@ -182,6 +196,9 @@ unordered_map<SystemStateId, SystemState> concurrentComposition(vector<Thread> t
 
     for (Thread &t: ts) {
       Location l = s.locations[t.id];
+      if (l >= t.model.trans.size()) {
+        continue;
+      }
       for (ThreadTrans trans: t.model.trans[l]) {
         if (trans.guard(s.sharedVars)) {
           SystemState newState = s;
@@ -189,15 +206,13 @@ unordered_map<SystemStateId, SystemState> concurrentComposition(vector<Thread> t
           newState.locations[t.id] = trans.dest;
 
           if (visited.count(newState) > 0) {
-            res[s.id].adjs.push_back(visited.find(newState)->id);
+            res[s.id].adjs.push_back(SystemStateRef(visited.find(newState)->id, trans.label));
             continue;
           }
 
           newState.id = ++id;
-          if (trans.dest < t.model.trans.size()) {
-            q.push(newState);
-            res[s.id].adjs.push_back(newState.id);
-          }
+          res[s.id].adjs.push_back(SystemStateRef(newState.id, trans.label));
+          q.push(newState);
         }
       }
     }
