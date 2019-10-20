@@ -181,18 +181,15 @@ void printDotComposision(unordered_map<SystemStateId, SystemState> composed) {
 unordered_map<SystemStateId, SystemState> concurrentComposition(vector<Thread> ts, SystemState &init) {
   unordered_map<SystemStateId, SystemState> res;
   unordered_set<SystemState> visited;
+
   queue<SystemState> q;
   q.push(init);
+  res[init.id] = init;
 
   SystemStateId id = init.id;
   while (q.size() > 0) {
     SystemState s = q.front();
     q.pop();
-    if (visited.count(s) > 0) {
-      continue;
-    }
-    visited.insert(s);
-    res[s.id] = s;
 
     for (Thread &t: ts) {
       Location l = s.locations[t.id];
@@ -211,8 +208,11 @@ unordered_map<SystemStateId, SystemState> concurrentComposition(vector<Thread> t
           }
 
           newState.id = ++id;
+          res[newState.id] = newState;
           res[s.id].adjs.push_back(SystemStateRef(newState.id, trans.label));
+
           q.push(newState);
+          visited.insert(newState);
         }
       }
     }
