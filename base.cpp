@@ -244,6 +244,7 @@ int main() {
   init.sharedVars.x = 0;
   init.sharedVars.t0 = 0;
   init.sharedVars.t1 = 0;
+  init.locations = vector<Location>{0, 0};
   auto res = concurrentComposition(vector<Thread>{p, q}, init);
   printDotComposision(res);
   return 0;
