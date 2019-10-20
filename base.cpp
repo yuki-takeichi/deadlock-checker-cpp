@@ -93,46 +93,6 @@ template<> struct hash<SystemState> {
   }
 };
 
-// Visualize thread impl
-
-void printDotTheadState(Location l) {
-  cout << l << ";" << endl;
-}
-
-void printDotTheadTrans(Location l, ThreadTrans choice) {
-  cout << l << " -> " << choice.dest << endl;
-}
-
-void printThreadTransition(Thread p) {
-  cout << "digraph {" << endl;
-
-  const ThreadModel &m = p.model;
-  unordered_set<Location> res;
-  queue<Location> q;
-  q.push(0 /* initial location */);
-  while (q.size() > 0) {
-    Location l = q.front();
-    q.pop();
-    if (res.count(l) > 0) {
-      continue;
-    }
-    res.insert(l);
-    printDotTheadState(l);
-
-    // XXX https://stackoverflow.com/a/41130170
-    vector<ThreadTrans> trans = m.trans.at(l);
-    for (ThreadTrans &choice: trans) {
-      if (choice.dest < m.trans.size()) {
-        q.push(choice.dest);
-        printDotTheadTrans(l, choice);
-      }
-    }
-  }
-
-  cout << "}" << endl;
-}
-
-
 // Visualize execution
 
 void printDotState(SystemState s) {
@@ -317,7 +277,6 @@ int main() {
   };
   modelQ.trans = transQ;
   Thread p(0, "p", model), q(1, "q", modelQ);
-  //printThreadTransition(p);
 
   SystemState init;
   init.sharedVars.x = 0;
